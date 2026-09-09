@@ -39,7 +39,7 @@ public class ClassSubjectController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
-        
+
     }
 
     // =========================
