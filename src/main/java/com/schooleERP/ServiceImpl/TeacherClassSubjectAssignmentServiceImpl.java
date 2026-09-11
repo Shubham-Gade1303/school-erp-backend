@@ -18,20 +18,14 @@ import java.util.List;
 
 @Service
 @Transactional
-public class TeacherClassSubjectAssignmentServiceImpl
-        implements TeacherClassSubjectAssignmentService {
+public class TeacherClassSubjectAssignmentServiceImpl implements TeacherClassSubjectAssignmentService {
 
     private final TeacherClassSubjectAssignmentRepo assignmentRepo;
     private final TeacherRepo teacherRepo;
     private final ClassSectionRepo classSectionRepo;
     private final ClassSubjectRepo classSubjectRepo;
 
-    public TeacherClassSubjectAssignmentServiceImpl(
-            TeacherClassSubjectAssignmentRepo assignmentRepo,
-            TeacherRepo teacherRepo,
-            ClassSectionRepo classSectionRepo,
-            ClassSubjectRepo classSubjectRepo
-    ) {
+    public TeacherClassSubjectAssignmentServiceImpl(TeacherClassSubjectAssignmentRepo assignmentRepo, TeacherRepo teacherRepo, ClassSectionRepo classSectionRepo, ClassSubjectRepo classSubjectRepo) {
         this.assignmentRepo = assignmentRepo;
         this.teacherRepo = teacherRepo;
         this.classSectionRepo = classSectionRepo;
@@ -43,78 +37,41 @@ public class TeacherClassSubjectAssignmentServiceImpl
     // =========================
 
     @Override
-    public TeacherClassSubjectAssignmentResponse createAssignment(
-            TeacherClassSubjectAssignmentRequest request
-    ) {
+    public TeacherClassSubjectAssignmentResponse createAssignment(TeacherClassSubjectAssignmentRequest request) {
 
         // Check duplicate assignment
-        if (assignmentRepo
-                .existsByTeacherIdAndClassSectionIdAndClassSubjectId(
-                        request.getTeacherId(),
-                        request.getClassSectionId(),
-                        request.getClassSubjectId()
-                )) {
+        if (assignmentRepo.existsByTeacherIdAndClassSectionIdAndClassSubjectId(request.getTeacherId(), request.getClassSectionId(), request.getClassSubjectId())) {
 
-            throw new IllegalArgumentException(
-                    "This teacher is already assigned to this subject for this class section"
-            );
+            throw new IllegalArgumentException("This teacher is already assigned to this subject for this class section");
         }
 
         // Find Teacher
-        Teacher teacher = teacherRepo
-                .findById(request.getTeacherId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Teacher not found with id: "
-                                        + request.getTeacherId()
-                        )
-                );
+        Teacher teacher = teacherRepo.findById(request.getTeacherId()).orElseThrow(() -> new IllegalArgumentException("Teacher not found with id: " + request.getTeacherId()));
 
         // Teacher must be active
         if (!teacher.isActive()) {
-            throw new IllegalArgumentException(
-                    "Cannot assign an inactive teacher"
-            );
+            throw new IllegalArgumentException("Cannot assign an inactive teacher");
         }
 
         // Find Class Section
-        ClassSection classSection = classSectionRepo
-                .findById(request.getClassSectionId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Class Section not found with id: "
-                                        + request.getClassSectionId()
-                        )
-                );
+        ClassSection classSection = classSectionRepo.findById(request.getClassSectionId()).orElseThrow(() -> new IllegalArgumentException("Class Section not found with id: " + request.getClassSectionId()));
 
         // Find Class Subject
-        ClassSubject classSubject = classSubjectRepo
-                .findById(request.getClassSubjectId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Class Subject not found with id: "
-                                        + request.getClassSubjectId()
-                        )
-                );
+        ClassSubject classSubject = classSubjectRepo.findById(request.getClassSubjectId()).orElseThrow(() -> new IllegalArgumentException("Class Subject not found with id: " + request.getClassSubjectId()));
 
         // Validate ClassSubject belongs to same
         // Academic Year and Standard as ClassSection
-        validateClassSubjectForSection(
-                classSection,
-                classSubject
-        );
+        validateClassSubjectForSection(classSection, classSubject);
 
         // Create assignment
-        TeacherClassSubjectAssignment assignment =
-                new TeacherClassSubjectAssignment();
+        TeacherClassSubjectAssignment assignment = new TeacherClassSubjectAssignment();
 
         assignment.setTeacher(teacher);
         assignment.setClassSection(classSection);
         assignment.setClassSubject(classSubject);
         assignment.setActive(request.isActive());
 
-        TeacherClassSubjectAssignment saved =
-                assignmentRepo.save(assignment);
+        TeacherClassSubjectAssignment saved = assignmentRepo.save(assignment);
 
         return mapToResponse(saved);
     }
@@ -125,13 +82,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public List<TeacherClassSubjectAssignmentResponse>
-    getAllAssignments() {
+    public List<TeacherClassSubjectAssignmentResponse> getAllAssignments() {
 
-        return assignmentRepo.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return assignmentRepo.findAll().stream().map(this::mapToResponse).toList();
     }
 
     // =========================
@@ -140,17 +93,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public TeacherClassSubjectAssignmentResponse
-    getAssignmentById(Long id) {
+    public TeacherClassSubjectAssignmentResponse getAssignmentById(Long id) {
 
-        TeacherClassSubjectAssignment assignment =
-                assignmentRepo.findById(id)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Assignment not found with id: "
-                                                + id
-                                )
-                        );
+        TeacherClassSubjectAssignment assignment = assignmentRepo.findById(id).orElseThrow(() -> new IllegalArgumentException("Assignment not found with id: " + id));
 
         return mapToResponse(assignment);
     }
@@ -161,14 +106,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public List<TeacherClassSubjectAssignmentResponse>
-    getByTeacher(Long teacherId) {
+    public List<TeacherClassSubjectAssignmentResponse> getByTeacher(Long teacherId) {
 
-        return assignmentRepo
-                .findByTeacherId(teacherId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return assignmentRepo.findByTeacherId(teacherId).stream().map(this::mapToResponse).toList();
     }
 
     // =========================
@@ -177,14 +117,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public List<TeacherClassSubjectAssignmentResponse>
-    getByClassSection(Long classSectionId) {
+    public List<TeacherClassSubjectAssignmentResponse> getByClassSection(Long classSectionId) {
 
-        return assignmentRepo
-                .findByClassSectionId(classSectionId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return assignmentRepo.findByClassSectionId(classSectionId).stream().map(this::mapToResponse).toList();
     }
 
     // =========================
@@ -193,14 +128,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public List<TeacherClassSubjectAssignmentResponse>
-    getByClassSubject(Long classSubjectId) {
+    public List<TeacherClassSubjectAssignmentResponse> getByClassSubject(Long classSubjectId) {
 
-        return assignmentRepo
-                .findByClassSubjectId(classSubjectId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return assignmentRepo.findByClassSubjectId(classSubjectId).stream().map(this::mapToResponse).toList();
     }
 
     // =========================
@@ -209,20 +139,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
 
     @Override
     @Transactional(readOnly = true)
-    public List<TeacherClassSubjectAssignmentResponse>
-    getByClassSectionAndClassSubject(
-            Long classSectionId,
-            Long classSubjectId
-    ) {
+    public List<TeacherClassSubjectAssignmentResponse> getByClassSectionAndClassSubject(Long classSectionId, Long classSubjectId) {
 
-        return assignmentRepo
-                .findByClassSectionIdAndClassSubjectId(
-                        classSectionId,
-                        classSubjectId
-                )
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return assignmentRepo.findByClassSectionIdAndClassSubjectId(classSectionId, classSubjectId).stream().map(this::mapToResponse).toList();
     }
 
     // =========================
@@ -230,95 +149,42 @@ public class TeacherClassSubjectAssignmentServiceImpl
     // =========================
 
     @Override
-    public TeacherClassSubjectAssignmentResponse updateAssignment(
-            Long id,
-            TeacherClassSubjectAssignmentRequest request
-    ) {
+    public TeacherClassSubjectAssignmentResponse updateAssignment(Long id, TeacherClassSubjectAssignmentRequest request) {
 
-        TeacherClassSubjectAssignment assignment =
-                assignmentRepo.findById(id)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Assignment not found with id: "
-                                                + id
-                                )
-                        );
+        TeacherClassSubjectAssignment assignment = assignmentRepo.findById(id).orElseThrow(() -> new IllegalArgumentException("Assignment not found with id: " + id));
 
         // Check duplicate assignment
-        boolean duplicate =
-                assignmentRepo
-                        .existsByTeacherIdAndClassSectionIdAndClassSubjectId(
-                                request.getTeacherId(),
-                                request.getClassSectionId(),
-                                request.getClassSubjectId()
-                        );
+        boolean duplicate = assignmentRepo.existsByTeacherIdAndClassSectionIdAndClassSubjectId(request.getTeacherId(), request.getClassSectionId(), request.getClassSubjectId());
 
-        boolean sameAssignment =
-                assignment.getTeacher().getId()
-                        .equals(request.getTeacherId())
-                        &&
-                        assignment.getClassSection().getId()
-                                .equals(request.getClassSectionId())
-                        &&
-                        assignment.getClassSubject().getId()
-                                .equals(request.getClassSubjectId());
+        boolean sameAssignment = assignment.getTeacher().getId().equals(request.getTeacherId()) && assignment.getClassSection().getId().equals(request.getClassSectionId()) && assignment.getClassSubject().getId().equals(request.getClassSubjectId());
 
         if (duplicate && !sameAssignment) {
 
-            throw new IllegalArgumentException(
-                    "This teacher is already assigned to this subject for this class section"
-            );
+            throw new IllegalArgumentException("This teacher is already assigned to this subject for this class section");
         }
 
         // Find Teacher
-        Teacher teacher = teacherRepo
-                .findById(request.getTeacherId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Teacher not found with id: "
-                                        + request.getTeacherId()
-                        )
-                );
+        Teacher teacher = teacherRepo.findById(request.getTeacherId()).orElseThrow(() -> new IllegalArgumentException("Teacher not found with id: " + request.getTeacherId()));
 
         if (!teacher.isActive()) {
-            throw new IllegalArgumentException(
-                    "Cannot assign an inactive teacher"
-            );
+            throw new IllegalArgumentException("Cannot assign an inactive teacher");
         }
 
         // Find Class Section
-        ClassSection classSection = classSectionRepo
-                .findById(request.getClassSectionId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Class Section not found with id: "
-                                        + request.getClassSectionId()
-                        )
-                );
+        ClassSection classSection = classSectionRepo.findById(request.getClassSectionId()).orElseThrow(() -> new IllegalArgumentException("Class Section not found with id: " + request.getClassSectionId()));
 
         // Find Class Subject
-        ClassSubject classSubject = classSubjectRepo
-                .findById(request.getClassSubjectId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Class Subject not found with id: "
-                                        + request.getClassSubjectId()
-                        )
-                );
+        ClassSubject classSubject = classSubjectRepo.findById(request.getClassSubjectId()).orElseThrow(() -> new IllegalArgumentException("Class Subject not found with id: " + request.getClassSubjectId()));
 
         // Validate relationship
-        validateClassSubjectForSection(
-                classSection,
-                classSubject
-        );
+        validateClassSubjectForSection(classSection, classSubject);
 
         assignment.setTeacher(teacher);
         assignment.setClassSection(classSection);
         assignment.setClassSubject(classSubject);
         assignment.setActive(request.isActive());
 
-        TeacherClassSubjectAssignment updated =
-                assignmentRepo.save(assignment);
+        TeacherClassSubjectAssignment updated = assignmentRepo.save(assignment);
 
         return mapToResponse(updated);
     }
@@ -330,14 +196,7 @@ public class TeacherClassSubjectAssignmentServiceImpl
     @Override
     public void deleteAssignment(Long id) {
 
-        TeacherClassSubjectAssignment assignment =
-                assignmentRepo.findById(id)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Assignment not found with id: "
-                                                + id
-                                )
-                        );
+        TeacherClassSubjectAssignment assignment = assignmentRepo.findById(id).orElseThrow(() -> new IllegalArgumentException("Assignment not found with id: " + id));
 
         assignmentRepo.delete(assignment);
     }
@@ -346,49 +205,34 @@ public class TeacherClassSubjectAssignmentServiceImpl
     // VALIDATE RELATIONSHIP
     // =========================
 
-    private void validateClassSubjectForSection(
-            ClassSection classSection,
-            ClassSubject classSubject
-    ) {
+    private void validateClassSubjectForSection(ClassSection classSection, ClassSubject classSubject) {
 
-        Long sectionAcademicYearId =
-                classSection.getAcademicYear().getId();
+        Long sectionAcademicYearId = classSection.getAcademicYear().getId();
 
-        Long subjectAcademicYearId =
-                classSubject.getAcademicYear().getId();
+        Long subjectAcademicYearId = classSubject.getAcademicYear().getId();
 
-        Long sectionStandardId =
-                classSection.getStandard().getId();
+        Long sectionStandardId = classSection.getStandard().getId();
 
-        Long subjectStandardId =
-                classSubject.getStandard().getId();
+        Long subjectStandardId = classSubject.getStandard().getId();
 
         if (!sectionAcademicYearId.equals(subjectAcademicYearId)) {
 
-            throw new IllegalArgumentException(
-                    "Class Subject belongs to a different academic year"
-            );
+            throw new IllegalArgumentException("Class Subject belongs to a different academic year");
         }
 
         if (!sectionStandardId.equals(subjectStandardId)) {
 
-            throw new IllegalArgumentException(
-                    "Class Subject does not belong to the selected standard"
-            );
+            throw new IllegalArgumentException("Class Subject does not belong to the selected standard");
         }
 
         if (!classSubject.isActive()) {
 
-            throw new IllegalArgumentException(
-                    "Cannot assign an inactive class subject"
-            );
+            throw new IllegalArgumentException("Cannot assign an inactive class subject");
         }
 
         if (!classSection.isActive()) {
 
-            throw new IllegalArgumentException(
-                    "Cannot assign a teacher to an inactive class section"
-            );
+            throw new IllegalArgumentException("Cannot assign a teacher to an inactive class section");
         }
     }
 
@@ -396,13 +240,9 @@ public class TeacherClassSubjectAssignmentServiceImpl
     // ENTITY → RESPONSE
     // =========================
 
-    private TeacherClassSubjectAssignmentResponse
-    mapToResponse(
-            TeacherClassSubjectAssignment assignment
-    ) {
+    private TeacherClassSubjectAssignmentResponse mapToResponse(TeacherClassSubjectAssignment assignment) {
 
-        TeacherClassSubjectAssignmentResponse response =
-                new TeacherClassSubjectAssignmentResponse();
+        TeacherClassSubjectAssignmentResponse response = new TeacherClassSubjectAssignmentResponse();
 
         response.setId(assignment.getId());
 
@@ -414,40 +254,24 @@ public class TeacherClassSubjectAssignmentServiceImpl
         response.setEmployeeCode(teacher.getEmployeeCode());
 
         // Class Section
-        ClassSection classSection =
-                assignment.getClassSection();
+        ClassSection classSection = assignment.getClassSection();
 
-        response.setClassSectionId(
-                classSection.getId()
-        );
+        response.setClassSectionId(classSection.getId());
 
-        response.setSectionName(
-                classSection.getSectionName()
-        );
+        response.setSectionName(classSection.getSectionName());
 
         // Class Subject
-        ClassSubject classSubject =
-                assignment.getClassSubject();
+        ClassSubject classSubject = assignment.getClassSubject();
 
-        response.setClassSubjectId(
-                classSubject.getId()
-        );
+        response.setClassSubjectId(classSubject.getId());
 
-        response.setSubjectName(
-                classSubject.getSubject().getSubjectName()
-        );
+        response.setSubjectName(classSubject.getSubject().getSubjectName());
 
-        response.setSubjectCode(
-                classSubject.getSubject().getSubjectCode()
-        );
+        response.setSubjectCode(classSubject.getSubject().getSubjectCode());
 
-        response.setStandardName(
-                classSubject.getStandard().getStandardName()
-        );
+        response.setStandardName(classSubject.getStandard().getStandardName());
 
-        response.setAcademicYear(
-                classSubject.getAcademicYear().getAcademicYear()
-        );
+        response.setAcademicYear(classSubject.getAcademicYear().getAcademicYear());
 
         response.setActive(assignment.isActive());
 

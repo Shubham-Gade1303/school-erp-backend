@@ -8,6 +8,7 @@ import com.schooleERP.enums.RoleName;
 import com.schooleERP.repository.TeacherRepo;
 import com.schooleERP.repository.UserRepo;
 import com.schooleERP.service.TeacherService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +20,16 @@ public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherRepo teacherRepo;
     private final UserRepo userRepo;
+    private final PasswordEncoder passwordEncoder;
 
     public TeacherServiceImpl(
             TeacherRepo teacherRepo,
-            UserRepo userRepo
+            UserRepo userRepo,
+            PasswordEncoder passwordEncoder
     ) {
         this.teacherRepo = teacherRepo;
         this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // =========================
@@ -33,34 +37,23 @@ public class TeacherServiceImpl implements TeacherService {
     // =========================
 
     @Override
-    public TeacherResponse createTeacher(
-            TeacherRequest request
-    ) {
+    public TeacherResponse createTeacher(TeacherRequest request) {
 
-        // Find User
-        User user = userRepo.findById(request.getUserId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found with id: "
-                                        + request.getUserId()
-                        )
-                );
-
-        // User must have TEACHER role
-        if (user.getRole() != RoleName.TEACHER) {
+        // Check username
+        if (userRepo.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException(
-                    "Selected user does not have TEACHER role"
+                    "Username already exists"
             );
         }
 
-        // One User can have only one Teacher profile
-        if (teacherRepo.existsByUserId(request.getUserId())) {
+        // Check email
+        if (userRepo.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException(
-                    "Teacher profile already exists for this user"
+                    "Email already exists"
             );
         }
 
-        // Employee code must be unique
+        // Check employee code
         if (request.getEmployeeCode() != null
                 && !request.getEmployeeCode().isBlank()
                 && teacherRepo.existsByEmployeeCode(
@@ -73,14 +66,53 @@ public class TeacherServiceImpl implements TeacherService {
             );
         }
 
-        // Create Teacher
+        // =========================
+        // CREATE USER
+        // =========================
+
+        User user = new User();
+
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+
+        // Automatically assign TEACHER role
+        user.setRole(RoleName.TEACHER);
+
+        // Encrypt password
+        user.setPassword(
+                passwordEncoder.encode(
+                        request.getPassword()
+                )
+        );
+
+        user.setEnabled(request.isActive());
+
+        User savedUser = userRepo.save(user);
+
+        // =========================
+        // CREATE TEACHER
+        // =========================
+
         Teacher teacher = new Teacher();
 
-        teacher.setUser(user);
-        teacher.setFullName(request.getFullName());
-        teacher.setEmployeeCode(request.getEmployeeCode());
-        teacher.setPhoneNumber(request.getPhoneNumber());
-        teacher.setActive(request.isActive());
+        // Connect Teacher with User
+        teacher.setUser(savedUser);
+
+        teacher.setFullName(
+                request.getFullName()
+        );
+
+        teacher.setEmployeeCode(
+                request.getEmployeeCode()
+        );
+
+        teacher.setPhoneNumber(
+                request.getPhoneNumber()
+        );
+
+        teacher.setActive(
+                request.isActive()
+        );
 
         Teacher savedTeacher = teacherRepo.save(teacher);
 
@@ -155,33 +187,7 @@ public class TeacherServiceImpl implements TeacherService {
                         )
                 );
 
-        // Find User
-        User user = userRepo.findById(request.getUserId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "User not found with id: "
-                                        + request.getUserId()
-                        )
-                );
-
-        // User must have TEACHER role
-        if (user.getRole() != RoleName.TEACHER) {
-            throw new IllegalArgumentException(
-                    "Selected user does not have TEACHER role"
-            );
-        }
-
-        // If changing user, make sure the new user
-        // doesn't already have another Teacher profile
-        if (!teacher.getUser().getId().equals(request.getUserId())
-                && teacherRepo.existsByUserId(request.getUserId())) {
-
-            throw new IllegalArgumentException(
-                    "Teacher profile already exists for this user"
-            );
-        }
-
-        // Check duplicate employee code
+        // Check employee code
         if (request.getEmployeeCode() != null
                 && !request.getEmployeeCode().isBlank()
                 && teacherRepo.existsByEmployeeCodeAndIdNot(
@@ -195,13 +201,57 @@ public class TeacherServiceImpl implements TeacherService {
             );
         }
 
-        teacher.setUser(user);
-        teacher.setFullName(request.getFullName());
-        teacher.setEmployeeCode(request.getEmployeeCode());
-        teacher.setPhoneNumber(request.getPhoneNumber());
-        teacher.setActive(request.isActive());
+        // =========================
+        // UPDATE TEACHER
+        // =========================
 
-        Teacher updatedTeacher = teacherRepo.save(teacher);
+        teacher.setFullName(
+                request.getFullName()
+        );
+
+        teacher.setEmployeeCode(
+                request.getEmployeeCode()
+        );
+
+        teacher.setPhoneNumber(
+                request.getPhoneNumber()
+        );
+
+        teacher.setActive(
+                request.isActive()
+        );
+
+        // =========================
+        // UPDATE USER
+        // =========================
+
+        User user = teacher.getUser();
+
+        user.setUsername(
+                request.getUsername()
+        );
+
+        user.setEmail(
+                request.getEmail()
+        );
+
+        user.setEnabled(
+                request.isActive()
+        );
+
+        // Update password only if provided
+        if (request.getPassword() != null
+                && !request.getPassword().isBlank()) {
+
+            user.setPassword(
+                    passwordEncoder.encode(
+                            request.getPassword()
+                    )
+            );
+        }
+
+        Teacher updatedTeacher =
+                teacherRepo.save(teacher);
 
         return mapToResponse(updatedTeacher);
     }
@@ -231,20 +281,42 @@ public class TeacherServiceImpl implements TeacherService {
             Teacher teacher
     ) {
 
-        TeacherResponse response = new TeacherResponse();
+        TeacherResponse response =
+                new TeacherResponse();
 
-        response.setId(teacher.getId());
+        response.setId(
+                teacher.getId()
+        );
 
         User user = teacher.getUser();
 
-        response.setUserId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setEmail(user.getEmail());
+        response.setUserId(
+                user.getId()
+        );
 
-        response.setFullName(teacher.getFullName());
-        response.setEmployeeCode(teacher.getEmployeeCode());
-        response.setPhoneNumber(teacher.getPhoneNumber());
-        response.setActive(teacher.isActive());
+        response.setUsername(
+                user.getUsername()
+        );
+
+        response.setEmail(
+                user.getEmail()
+        );
+
+        response.setFullName(
+                teacher.getFullName()
+        );
+
+        response.setEmployeeCode(
+                teacher.getEmployeeCode()
+        );
+
+        response.setPhoneNumber(
+                teacher.getPhoneNumber()
+        );
+
+        response.setActive(
+                teacher.isActive()
+        );
 
         return response;
     }
