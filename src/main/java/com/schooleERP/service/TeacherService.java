@@ -15,10 +15,7 @@ public interface TeacherService {
 
     TeacherResponse getTeacherByUserId(Long userId);
 
-    TeacherResponse updateTeacher(
-            Long id,
-            TeacherRequest request
-    );
+    TeacherResponse updateTeacher(Long id, TeacherRequest request);
 
     void deleteTeacher(Long id);
 }
