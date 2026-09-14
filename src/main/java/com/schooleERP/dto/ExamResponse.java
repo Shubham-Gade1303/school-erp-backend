@@ -7,29 +7,25 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ClassSectionResponse {
+public class ExamResponse {
 
     private Long id;
 
-    private Long academicYearId;
+    private String examName;
 
+    private Long academicYearId;
     private String academicYear;
 
     private Long standardId;
-
     private String standardName;
 
-    private String sectionName;
+    private LocalDate startDate;
+    private LocalDate endDate;
 
     private boolean active;
-
-    private LocalDate createdAt;
-
-    private LocalDate updatedAt;
 }
 

@@ -127,10 +127,7 @@ public class ClassSectionServiceImpl
         ClassSection classSection =
                 classSectionRepo.findById(id)
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Class section not found with id: "
-                                                + id
-                                ));
+                                new IllegalArgumentException( "Class section not found with id: " + id));
 
         return mapEntityToResponse(classSection);
     }
@@ -143,10 +140,7 @@ public class ClassSectionServiceImpl
         ClassSection classSection =
                 classSectionRepo.findById(id)
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Class section not found with id: "
-                                                + id
-                                ));
+                                new IllegalArgumentException("Class section not found with id: " + id));
 
         AcademicYear academicYear =
                 getAcademicYear(
@@ -175,8 +169,7 @@ public class ClassSectionServiceImpl
             validateDuplicate(
                     request.getAcademicYearId(),
                     request.getStandardId(),
-                    request.getSectionName()
-            );
+                    request.getSectionName());
         }
 
         classSection.setAcademicYear(academicYear);
@@ -184,13 +177,9 @@ public class ClassSectionServiceImpl
         classSection.setSectionName(
                 request.getSectionName()
         );
-        classSection.setActive(
-                request.isActive()
-        );
+        classSection.setActive(request.isActive());
 
-        ClassSection updatedClassSection =
-                classSectionRepo.save(classSection);
-
+        ClassSection updatedClassSection = classSectionRepo.save(classSection);
         return mapEntityToResponse(updatedClassSection);
     }
 
@@ -208,23 +197,16 @@ public class ClassSectionServiceImpl
     }
 
     private AcademicYear getAcademicYear(Long id) {
-
         return academicYearRepo.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Academic year not found with id: "
-                                        + id
-                        ));
+                        new IllegalArgumentException("Academic year not found with id: " + id));
     }
 
     private Standard getStandard(Long id) {
 
         return standardRepo.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Standard not found with id: "
-                                        + id
-                        ));
+                        new IllegalArgumentException("Standard not found with id: " + id));
     }
 
     private void validateDuplicate(
@@ -240,9 +222,7 @@ public class ClassSectionServiceImpl
                 )) {
 
             throw new IllegalArgumentException(
-                    "Class section already exists for the selected "
-                            + "academic year, standard and section"
-            );
+                    "Class section already exists for the selected " + "academic year, standard and section");
         }
     }
 
@@ -251,17 +231,12 @@ public class ClassSectionServiceImpl
 
         return new ClassSectionResponse(
                 classSection.getId(),
-
                 classSection.getAcademicYear().getId(),
                 classSection.getAcademicYear().getAcademicYear(),
-
                 classSection.getStandard().getId(),
                 classSection.getStandard().getStandardName(),
-
                 classSection.getSectionName(),
-
                 classSection.isActive(),
-
                 classSection.getCreatedAt(),
                 classSection.getUpdatedAt()
         );
