@@ -10,8 +10,7 @@ import java.time.LocalDate;
 @Entity
 @Table(
         name = "students",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = "admission_number")
+        uniqueConstraints = {@UniqueConstraint(columnNames = "admission_number")
         }
 )
 @Getter
@@ -23,12 +22,7 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(
-            name = "admission_number",
-            nullable = false,
-            unique = true,
-            length = 30
-    )
+    @Column(name = "admission_number", nullable = false, unique = true, length = 30)
     private String admissionNumber;
 
     @Column(nullable = false, length = 100)

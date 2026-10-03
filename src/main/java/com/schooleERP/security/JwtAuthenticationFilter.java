@@ -96,7 +96,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
 
-            // Invalid / expired JWT
+            // Invalid / expired JWTee
             // or user does not exist
             SecurityContextHolder.clearContext();
         }
