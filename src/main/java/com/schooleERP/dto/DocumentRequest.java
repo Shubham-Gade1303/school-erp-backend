@@ -1,37 +1,26 @@
 package com.schooleERP.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.schooleERP.enums.DocumentType;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.validation.constraints.Positive;
 
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 public class DocumentRequest {
 
-    @NotNull
+    @NotNull(message = "Student ID is required")
+    @Positive(message = "Invalid student ID")
     private Long studentId;
 
-    @NotBlank
-    @Size(max = 100)
-    private String documentType;
+    @NotNull(message = "Document type is required")
+    private DocumentType documentType;
 
-    @NotBlank
-    @Size(max = 255)
-    private String documentName;
+    public DocumentRequest() {
+    }
 
-    @Size(max = 500)
-    private String documentUrl;
+    public Long getStudentId() { return studentId; }
+    public void setStudentId(Long studentId) { this.studentId = studentId; }
 
-
-    private LocalDate uploadedDate;
+    public DocumentType getDocumentType() { return documentType; }
+    public void setDocumentType(DocumentType documentType) {
+        this.documentType = documentType;
+    }
 }
-
-
