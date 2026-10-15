@@ -2,186 +2,256 @@ package com.schooleERP.ServiceImpl;
 
 import com.schooleERP.dto.DocumentRequest;
 import com.schooleERP.dto.DocumentResponse;
-import com.schooleERP.entity.Document;
-import com.schooleERP.entity.Student;
+import com.schooleERP.entity.Documents;
 import com.schooleERP.repository.DocumentRepo;
-import com.schooleERP.repository.StudentRepo;
 import com.schooleERP.service.DocumentService;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Transactional
 public class DocumentServiceImpl implements DocumentService {
 
-    private final DocumentRepo documentRepo;
-    private final StudentRepo studentRepo;
+    private static final long MAX_FILE_SIZE = 1024L * 1024;
 
-    public DocumentServiceImpl(
-            DocumentRepo documentRepo,
-            StudentRepo studentRepo
-    ) {
+    private final DocumentRepo documentRepo;
+
+    public DocumentServiceImpl(DocumentRepo documentRepo) {
         this.documentRepo = documentRepo;
-        this.studentRepo = studentRepo;
     }
 
     @Override
-    public DocumentResponse createDocument(DocumentRequest request) {
+    public DocumentResponse createDocument(
+            DocumentRequest request, MultipartFile file) {
 
-        Student student = studentRepo.findById(request.getStudentId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Student not found with id: " + request.getStudentId()
-                        )
-                );
+        validateRequest(request);
 
-        if (documentRepo.existsByStudentIdAndDocumentType(
-                request.getStudentId(),
-                request.getDocumentType()
-        )) {
-            throw new IllegalArgumentException(
-                    "Document of type '" + request.getDocumentType()
-                            + "' already exists for student id: "
-                            + request.getStudentId()
-            );
-        }
+        // Verify the student exists here using your existing
+        // student/admission repository before saving.
 
-        Document document = new Document();
-
-        document.setStudent(student);
+        Documents document = new Documents();
+        document.setStudentId(request.getStudentId());
         document.setDocumentType(request.getDocumentType());
-        document.setDocumentName(request.getDocumentName());
-        document.setDocumentUrl(request.getDocumentUrl());
-        document.setUploadedDate(request.getUploadedDate());
 
-        return mapToResponse(documentRepo.save(document));
+        applyFile(document, file);
+
+        return toResponse(documentRepo.save(document));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getAllDocuments() {
-
-        return documentRepo.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return documentRepo.findAllMetadata();
     }
 
     @Override
     @Transactional(readOnly = true)
     public DocumentResponse getDocumentById(Long id) {
+        checkId(id);
 
-        Document document = documentRepo.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Document not found with id: " + id
-                        )
-                );
-
-        return mapToResponse(document);
+        return documentRepo.findMetadataById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Document not found"));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByStudent(Long studentId) {
-
-        if (!studentRepo.existsById(studentId)) {
-            throw new IllegalArgumentException(
-                    "Student not found with id: " + studentId
-            );
-        }
-
-        return documentRepo.findByStudentId(studentId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        checkId(studentId);
+        return documentRepo.findMetadataByStudentId(studentId);
     }
 
     @Override
     public DocumentResponse updateDocument(
-            Long id,
-            DocumentRequest request
-    ) {
+            Long id, DocumentRequest request) {
 
-        Document document = documentRepo.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Document not found with id: " + id
-                        )
-                );
+        checkId(id);
+        validateRequest(request);
 
-        Student student = studentRepo.findById(request.getStudentId())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Student not found with id: " + request.getStudentId()
-                        )
-                );
+        Documents document = findDocument(id);
 
-        if (!document.getStudent().getId().equals(request.getStudentId())
-                || !document.getDocumentType().equals(request.getDocumentType())) {
-
-            if (documentRepo.existsByStudentIdAndDocumentType(
-                    request.getStudentId(),
-                    request.getDocumentType()
-            )) {
-                throw new IllegalArgumentException(
-                        "Document of type '" + request.getDocumentType()
-                                + "' already exists for student id: "
-                                + request.getStudentId()
-                );
-            }
-        }
-
-        document.setStudent(student);
+        // Verify the new student exists before changing studentId.
+        document.setStudentId(request.getStudentId());
         document.setDocumentType(request.getDocumentType());
-        document.setDocumentName(request.getDocumentName());
-        document.setDocumentUrl(request.getDocumentUrl());
-        document.setUploadedDate(request.getUploadedDate());
 
-        return mapToResponse(documentRepo.save(document));
+        return toResponse(documentRepo.save(document));
+    }
+
+    @Override
+    public DocumentResponse replaceDocumentFile(
+            Long id, MultipartFile file) {
+
+        Documents document = findDocument(id);
+        applyFile(document, file);
+
+        return toResponse(documentRepo.save(document));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentDownload downloadDocument(Long id) {
+        Documents document = findDocument(id);
+
+        return new DocumentDownload(
+                document.getFileName(),
+                document.getContentType(),
+                document.getFileData()
+        );
     }
 
     @Override
     public void deleteDocument(Long id) {
+        documentRepo.delete(findDocument(id));
+    }
 
-        if (!documentRepo.existsById(id)) {
-            throw new IllegalArgumentException(
-                    "Document not found with id: " + id
-            );
+    private void validateRequest(DocumentRequest request) {
+        if (request == null
+                || request.getStudentId() == null
+                || request.getStudentId() <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid student ID");
         }
 
-        documentRepo.deleteById(id);
+        if (request.getDocumentType() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Document type is required");
+        }
     }
 
-    private DocumentResponse mapToResponse(Document document) {
+    private void applyFile(Documents document, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "A file is required");
+        }
 
-        Student student = document.getStudent();
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYLOAD_TOO_LARGE,
+                    "File size must not exceed 1 MB");
+        }
 
-        DocumentResponse response = new DocumentResponse();
+        String originalName = file.getOriginalFilename();
+        String fileName = originalName == null
+                ? ""
+                : originalName.trim();
 
-        response.setId(document.getId());
+        if (fileName.isBlank()
+                || fileName.length() > 255
+                || fileName.contains("/")
+                || fileName.contains("\\")
+                || fileName.contains("..")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid file name");
+        }
 
-        response.setStudentId(student.getId());
-        response.setAdmissionNumber(student.getAdmissionNumber());
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Unable to read uploaded file");
+        }
 
-        String studentName =
-                student.getFirstName()
-                        + " "
-                        + (student.getMiddleName() != null
-                        ? student.getMiddleName() + " "
-                        : "")
-                        + student.getLastName();
+        String detectedType = detectContentType(bytes);
+        String extension = getExtension(fileName);
 
-        response.setStudentName(studentName.trim());
+        if (detectedType == null
+                || !extensionMatches(extension, detectedType)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Only valid PDF, JPG, JPEG and PNG files are allowed");
+        }
 
-        response.setDocumentType(document.getDocumentType());
-        response.setDocumentName(document.getDocumentName());
-        response.setDocumentUrl(document.getDocumentUrl());
-        response.setUploadedDate(document.getUploadedDate());
+        document.setFileName(fileName);
+        document.setContentType(detectedType);
+        document.setFileSize((long) bytes.length);
+        document.setFileData(bytes);
+    }
 
-        return response;
+    private void checkId(Long id) {
+        if (id == null || id <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Invalid ID");
+        }
+    }
+
+    private Documents findDocument(Long id) {
+        checkId(id);
+
+        return documentRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Document not found"));
+    }
+
+    private DocumentResponse toResponse(Documents document) {
+        return new DocumentResponse(
+                document.getId(),
+                document.getStudentId(),
+                document.getDocumentType(),
+                document.getFileName(),
+                document.getContentType(),
+                document.getFileSize(),
+                document.getUploadedAt()
+        );
+    }
+
+    private String getExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+
+        if (dot < 0 || dot == fileName.length() - 1) {
+            return "";
+        }
+
+        return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private String detectContentType(byte[] data) {
+        if (startsWith(data,
+                new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D})) {
+            return "application/pdf";
+        }
+
+        if (startsWith(data,
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF})) {
+            return "image/jpeg";
+        }
+
+        if (startsWith(data, new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47,
+                0x0D, 0x0A, 0x1A, 0x0A
+        })) {
+            return "image/png";
+        }
+
+        return null;
+    }
+
+    private boolean startsWith(byte[] data, byte[] signature) {
+        return data.length >= signature.length
+                && Arrays.equals(
+                Arrays.copyOf(data, signature.length),
+                signature);
+    }
+
+    private boolean extensionMatches(
+            String extension, String contentType) {
+
+        return switch (contentType) {
+            case "application/pdf" -> extension.equals("pdf");
+            case "image/jpeg" ->
+                    extension.equals("jpg") || extension.equals("jpeg");
+            case "image/png" -> extension.equals("png");
+            default -> false;
+        };
     }
 }
-

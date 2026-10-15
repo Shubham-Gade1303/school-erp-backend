@@ -1,14 +1,14 @@
-
 package com.schooleERP.service;
 
 import com.schooleERP.dto.DocumentRequest;
 import com.schooleERP.dto.DocumentResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 public interface DocumentService {
 
-    DocumentResponse createDocument(DocumentRequest request);
+    DocumentResponse createDocument(DocumentRequest request, MultipartFile file);
 
     List<DocumentResponse> getAllDocuments();
 
@@ -18,6 +18,12 @@ public interface DocumentService {
 
     DocumentResponse updateDocument(Long id, DocumentRequest request);
 
-    void deleteDocument(Long id);
-}
+    DocumentResponse replaceDocumentFile(Long id, MultipartFile file);
 
+    DocumentDownload downloadDocument(Long id);
+
+    void deleteDocument(Long id);
+
+    record DocumentDownload(String fileName, String contentType, byte[] fileData) {
+    }
+}
